@@ -14,9 +14,11 @@ namespace FastWritingChallange
         private int timer;
         Random Random = new();
         private string word;
+        private readonly object lockObject = new();
 
-        internal async void play(List<string> list)
+        internal bool play(List<string> list)
         {
+
             for (int i = 0; i < list.Count; i++)
             {
                 Console.Clear();
@@ -26,45 +28,94 @@ namespace FastWritingChallange
                 Console.SetCursorPosition(0, 0);
                 Console.Write($"score: {score}");
 
-                var worker = new Thread(() =>
+                using (var cts = new CancellationTokenSource())
                 {
-                    while (timer > 0)
+                    var worker = new Thread(() => TimerWorker(cts.Token));
+                    worker.Start();
+
+                    Console.SetCursorPosition(5, 5);
+                    Console.Write($"{word}");
+
+                    bool correct = HandleInput(cts);
+                    worker.Join();
+
+                    Console.SetCursorPosition(0, 8);
+                    lock (lockObject)
                     {
-                        showTime();
-                        timer--;
-                        Thread.Sleep(1000);
+                        if (correct)
+                        {
+                            score++;
+                            Console.WriteLine("Correct!");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Wrong!");
+                        }
                     }
-                });
-                worker.Start();
-
-                Console.SetCursorPosition(5, 5);
-                Console.Write($"{word}");
-                handleInput();
+                    Thread.Sleep(1000);
+                }
             }
+
+
+            Console.Clear();
+            Console.WriteLine($"Game Over! Your final score is {score}.");
+            Console.WriteLine("Do you want to play again?(y/n)");
+
+            var response = Console.ReadLine().Trim().ToLower();
+            return response == "y";
         }
 
-        void handleInput()
+        private void TimerWorker(CancellationToken token)
         {
-            Console.SetCursorPosition(20, 20);
-            var input = Console.ReadLine();
-            if (input == word && timer > 0)
+            while (timer > 0 && !token.IsCancellationRequested)
             {
-                score++;
-                Console.WriteLine("Correct!");
+                lock (lockObject)
+                {
+                    showTime();
+                }
+                Thread.Sleep(1000);
+                lock (lockObject)
+                {
+                    timer--;
+                }
             }
-            else if (input != word && timer > 0)
-            {
-                Console.WriteLine("Wrong!");
-            }
-            Console.ReadKey();
         }
 
-        private async void showTime()
+        private bool HandleInput(CancellationTokenSource cts)
+        {
+            string input = string.Empty;
+            DateTime endTime = DateTime.Now.AddSeconds(timer);
+
+            Console.SetCursorPosition(5, 7);
+            while (DateTime.Now < endTime)
+            {
+                if (Console.KeyAvailable)
+                {
+                    ConsoleKeyInfo KeyInfo = Console.ReadKey(intercept: true);
+                    if (KeyInfo.Key == ConsoleKey.Enter)
+                    {
+                        cts.Cancel();
+                        break;
+                    }
+                    input += KeyInfo.KeyChar;
+                    lock (lockObject)
+                    {
+                        Console.SetCursorPosition(5, 7);
+                        Console.Write(new string(' ', Console.WindowWidth - 5));
+                        Console.SetCursorPosition(5, 7);
+                        Console.Write(input);
+                    }
+                }
+            }
+            return input.Trim().Equals(word, StringComparison.OrdinalIgnoreCase);
+        }
+                
+        private void showTime()
         {
             Console.SetCursorPosition(20, 0);
             Console.Write($"timer: {timer}");
         }
     }
-    }
+}
 
 
