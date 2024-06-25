@@ -1,7 +1,7 @@
 ﻿using FastWritingChallange;
 class Program
 {
-    static void Main()
+    public static void Main()
     {
         Run();
     }
@@ -17,7 +17,7 @@ class Program
         while (true)
         {
             Console.Clear();
-            new Mann().Mann1();
+            //new Mann().Mann1();
             Console.WriteLine($"1 for {easy.Name}");
             Console.WriteLine($"2 for {medium.Name}");
             Console.WriteLine($"3 for {hard.Name}");
